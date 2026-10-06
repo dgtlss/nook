@@ -9,8 +9,8 @@ reference for user-facing features. No Ice source or assets are included. See
 
 ## Download
 
-Public previews are distributed through [GitHub Releases](https://github.com/dgtlss/nook/releases).
-The current package targets Apple silicon and macOS 27 or later; macOS 27.2
+Preview downloads are published through [GitHub Releases](https://github.com/dgtlss/nook/releases).
+Packaged builds target Apple silicon and macOS 27 or later; macOS 27.2
 (26B5091g) is the tested build. Use the DMG to install Nook in Applications.
 
 ## Run
@@ -105,8 +105,8 @@ automatic updates are not implemented. Launch at login, all gestures,
 full-screen appearance, multiple displays and sleep/wake need broader testing.
 
 See [validation](docs/VALIDATION.md) for tested behavior and remaining coverage.
-The source and artwork are distributed under MIT. Release downloads and
-checksums are available from GitHub Releases.
+The source and artwork are distributed under MIT. For release downloads and
+checksums, see GitHub Releases.
 
 ## Contributing
 
