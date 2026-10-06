@@ -29,7 +29,11 @@ notarization log on rejection and correct the cause before preparing new files.
 
 Before publishing, inspect the exact source commit, verify the final checksums,
 and test installation from the archive. Tag that commit and create a GitHub
-Release with the DMG, ZIP and `SHA256SUMS.txt`. Mark experimental versions as
+Release with the DMG, ZIP and `SHA256SUMS.txt`. For this repository, prepare a
+draft with the exact source commit recorded in `verification/source-commit.txt`,
+then run `./scripts/publish-release.sh <release-directory>` to recheck the
+notarization records, downloads, extracted ZIP and Gatekeeper before uploading
+and publishing. Existing assets are never overwritten. Mark experimental versions as
 pre-releases and state the tested macOS build and architecture. Do not upload
 the working directory or signing diagnostics as release assets.
 
