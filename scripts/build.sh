@@ -14,7 +14,10 @@ if [[ -f Resources/Nook.icns ]]; then
     cp Resources/Nook.icns "$NOOK_BUNDLE/Contents/Resources/Nook.icns"
 fi
 cp LICENSE "$NOOK_BUNDLE/Contents/Resources/LICENSE"
-codesign --force --options runtime --timestamp=none --sign "${NOOK_SIGN_IDENTITY:--}" "$NOOK_BUNDLE"
+NOOK_IDENTITY="${NOOK_SIGN_IDENTITY:--}"
+NOOK_TIMESTAMP=(--timestamp)
+if [[ "$NOOK_IDENTITY" == '-' ]]; then NOOK_TIMESTAMP=(--timestamp=none); fi
+codesign --force --options runtime "${NOOK_TIMESTAMP[@]}" --sign "$NOOK_IDENTITY" "$NOOK_BUNDLE"
 codesign --verify --strict "$NOOK_BUNDLE"
 if [[ -d "$PWD/build/Nook.app" ]]; then
     mv "$PWD/build/Nook.app" "$NOOK_STAGE/previous-Nook.app"

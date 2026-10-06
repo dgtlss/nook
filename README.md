@@ -7,6 +7,12 @@ Nook's source, interface and artwork were created for this project. Ice was a
 reference for user-facing features. No Ice source or assets are included. See
 [provenance](docs/PROVENANCE.md).
 
+## Download
+
+Public previews are distributed through [GitHub Releases](https://github.com/dgtlss/nook/releases).
+The current package targets Apple silicon and macOS 27 or later; macOS 27.2
+(26B5091g) is the tested build. Use the DMG to install Nook in Applications.
+
 ## Run
 
 Install and run `/Applications/Nook.app` (see Build below). Enable it in System Settings →
@@ -66,7 +72,9 @@ By default the app is ad-hoc signed. To use your own signing identity:
 NOOK_CONFIGURATION=release NOOK_SIGN_IDENTITY='Developer ID Application: Your Name (TEAMID)' ./scripts/build.sh
 ```
 
-This builds locally; it does not notarize, upload or register a public release.
+This builds locally. Developer ID builds use hardened runtime and a secure
+timestamp; ad-hoc builds have no secure timestamp. To prepare notarized ZIP and
+DMG downloads, follow [Releasing](docs/RELEASING.md).
 Open `/Applications/Nook.app` after installation. On the tested macOS build,
 launching from the development folder caused the system allow-list to hide
 Nook itself despite explicitly allowing its bundle ID. The installed copy
@@ -78,7 +86,7 @@ integration testing. No existing application's preferences need to be altered.
 
 ## Current scope
 
-This is version 0.1.6, a local development build. It targets the installed
+Version 0.1.6 is an experimental preview. It targets the installed
 macOS 27.2 build 26B5091g. The visibility backend uses the private Apple
 `MenuBarClientCore` framework, checks selectors at runtime, and verifies actual
 Accessibility visibility after each hide/peek request. Apple can change this
@@ -97,8 +105,8 @@ automatic updates are not implemented. Launch at login, all gestures,
 full-screen appearance, multiple displays and sleep/wake need broader testing.
 
 See [validation](docs/VALIDATION.md) for tested behavior and remaining coverage.
-The source is ready to publish under MIT, but a public repository and
-notarized release have not been created.
+The source and artwork are distributed under MIT. Release downloads and
+checksums are available from GitHub Releases.
 
 ## Contributing
 
