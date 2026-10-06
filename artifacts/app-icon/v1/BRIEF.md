@@ -1,0 +1,1 @@
+Nook is an independently written menu bar organiser. Metaphor: a friendly creature peeking from a sheltered nook. Forest teal, ivory ceramic, and apricot enamel. Playful, calm, readable at small sizes. Target: macOS app, flattened .icns; original vector menu bar mark drawn in AppKit. Tool: built-in image_gen. No reference artwork or Ice assets used. Master retained unchanged.
