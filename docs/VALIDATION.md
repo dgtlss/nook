@@ -181,7 +181,7 @@ including preference compatibility and round-trip tests, passed. The permission
 screen and error copy were reviewed in source, without revoking Accessibility.
 Current preferences were retained, including the owner's now-disabled tint.
 
-## Automatic updates — 0.1.7 preparation, 7 October 2026
+## Automatic updates — 0.1.7, 7 October 2026
 
 Added Sparkle 2.10.0, daily checks, manual checks and optional automatic
 download/installation controls. The application restores menu bar visibility
@@ -205,8 +205,8 @@ isolated test defaults domain, and manual-check recovery from an unavailable
 server. The installed 0.1.6 app was reopened after testing and its previous nine
 hidden apps were hidden again. The test copy was stopped.
 
-The test feed uses `updates.invalid` and is deliberately unpublished. Production
-Space is now configured: `nook-releases` in `lon1`, CDN enabled, restricted
+The unavailable-server test used `updates.invalid` and was deliberately
+unpublished. Production Space is configured: `nook-releases` in `lon1`, CDN enabled, restricted
 listing, one-minute fallback edge cache TTL. The public configuration was saved
 to `distribution/spaces.json`. The bucket-scoped `nook-release-publisher` key
 was created with the owner's explicit approval and saved in the login Keychain.
@@ -214,11 +214,32 @@ Authenticated upload and metadata lookup succeeded. Two revisions of a small
 validation object were verified byte-for-byte through origin and CDN; the CDN
 returned the second revision immediately and preserved the live metadata cache
 header (`no-cache, max-age=0, must-revalidate`). Bucket listing remains restricted.
-No 0.1.7 release or
-production feed has been published, and the installed app remains 0.1.6.
-Full download/install/relaunch, install-on-quit, Accessibility and login-item
-continuity across an actual update still need
-testing against a separate hosted test feed before the production feed advances.
+
+The final 0.1.7 app and DMG were accepted by Apple, stapled and verified by
+Gatekeeper. The complete release verifier passed. A notarized updater-enabled
+test copy, labelled 0.1.6/build 7, was installed at `/Applications/Nook.app` with a
+separate hosted test feed under `nook/validation/updater-2026-10-07/`. This is a
+test copy of the new updater code, not the public 0.1.6 binary, which has no
+updater. It downloaded the exact production 0.1.7 DMG through the CDN, verified
+the signed feed and archive, installed and relaunched as version 0.1.7/build 8.
+All nine hidden apps were restored during restart. Both Sparkle update settings
+survived. Organisation, appearance and behaviour settings were unchanged; only
+the remembered-app cache order changed. Launch at login remained enabled.
+
+A second run from the same lower-build test copy exercised a scheduled check
+with optional automatic installation enabled. Sparkle downloaded and staged the
+update in the background. Normal quit installed build 8 and left Nook closed;
+opening Nook then ran the production app. Accessibility remained granted and
+all nine assigned apps could still be hidden. Automatic installation was
+returned to its default off state; daily checks remain enabled. The final
+installed app uses the production feed and the previous hidden state was restored.
+
+The public source commit for this build is `0e97c71`. Version 0.1.7 was published
+as a GitHub prerelease and to Spaces. The publisher verified all four release
+files byte-for-byte through origin and CDN before advancing the signed production
+feed. It verified the stable feed and `latest.json` afterward. A manual update
+check from the installed production app displayed “You’re up to date!” for
+0.1.7. Existing users of 0.1.6 need one manual installation to gain the updater.
 
 ## Other coverage still needed
 
