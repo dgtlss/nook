@@ -267,6 +267,14 @@ Always hidden app's restriction; hiding again succeeded. The owner's shelf
 preference was restored. These checks were on macOS 27.2 (26B5091g); the other
 Mac's version and exact flash duration are still awaiting confirmation.
 
+The final 0.1.8 app and DMG passed Apple notarization, stapling and the complete
+release verifier. GitHub and Spaces publication succeeded from source commit
+`f10212f`; the publisher verified all four release files through origin and CDN
+before advancing the signed feed to build 9. The running 0.1.7 test build found
+0.1.8 through the production feed, downloaded, installed and relaunched it.
+The installed app's recursive code signature and staple validated. Saved
+settings were preserved, and the previous nine-app hidden state was restored.
+
 ## Other coverage still needed
 
 Global shortcut registration and delivery on a physical keyboard; hover,

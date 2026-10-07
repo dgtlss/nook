@@ -9,8 +9,8 @@ reference for user-facing features. No Ice source or assets are included. See
 
 ## Download
 
-[Download Nook 0.1.7](https://nook-releases.lon1.cdn.digitaloceanspaces.com/nook/versions/v0.1.7/Nook-0.1.7-arm64.dmg)
-or view [release notes and checksums](https://github.com/dgtlss/nook/releases/tag/v0.1.7).
+[Download Nook 0.1.8](https://nook-releases.lon1.cdn.digitaloceanspaces.com/nook/versions/v0.1.8/Nook-0.1.8-arm64.dmg)
+or view [release notes and checksums](https://github.com/dgtlss/nook/releases/tag/v0.1.8).
 Packaged builds target Apple silicon and macOS 27 or later; macOS 27.2
 (26B5091g) is the tested build. Use the DMG to install Nook in Applications.
 
@@ -90,7 +90,7 @@ integration testing. No existing application's preferences need to be altered.
 
 ## Current scope
 
-Version 0.1.7 is an experimental preview. It targets the installed
+Version 0.1.8 is an experimental preview. It targets the installed
 macOS 27.2 build 26B5091g. The visibility backend uses the private Apple
 `MenuBarClientCore` framework, checks selectors at runtime, and verifies actual
 Accessibility visibility after each hide/peek request. Apple can change this
