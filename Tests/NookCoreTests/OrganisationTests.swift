@@ -48,6 +48,29 @@ private let ownID = "dev.nathanlanger.Nook"
     #expect(plan.allowed.contains("com.apple.controlcenter"))
 }
 
+@Test func backgroundAppExitAndReturnDoNotChangeVisibilityRequest() {
+    var p = Preferences()
+    p.assignments = ["org.sample.Hidden": .tucked]
+    let initial = VisibilityPlan(preferences: p, runningBundles: ["org.sample.Hidden", "org.sample.Helper"], reveal: .tucked, ownID: ownID)
+    let afterExit = VisibilityPlan(preferences: p, runningBundles: ["org.sample.Hidden"], reveal: .tucked, ownID: ownID, previouslyAllowed: initial.allowed)
+    let afterReturn = VisibilityPlan(preferences: p, runningBundles: ["org.sample.Hidden", "org.sample.Helper"], reveal: .tucked, ownID: ownID, previouslyAllowed: afterExit.allowed)
+    #expect(afterExit == initial)
+    #expect(afterReturn == initial)
+}
+
+@Test func newAppsAreAllowedAndHiddenAssignmentsOverrideAllowHistory() {
+    var p = Preferences()
+    p.assignments = ["org.sample.Hidden": .tucked]
+    let initial = VisibilityPlan(preferences: p, runningBundles: ["org.sample.Hidden", "org.sample.Visible"], reveal: .tucked, ownID: ownID)
+    let launched = VisibilityPlan(preferences: p, runningBundles: ["org.sample.Hidden", "org.sample.Visible", "org.sample.New"], reveal: .tucked, ownID: ownID, previouslyAllowed: initial.allowed)
+    #expect(launched.allowed.contains("org.sample.New"))
+    p.assignments["org.sample.Visible"] = .quiet
+    let reassigned = VisibilityPlan(preferences: p, runningBundles: ["org.sample.Hidden", "org.sample.New"], reveal: .tucked, ownID: ownID, previouslyAllowed: launched.allowed)
+    #expect(reassigned.hidden == ["org.sample.Hidden", "org.sample.Visible"])
+    #expect(!reassigned.allowed.contains("org.sample.Visible"))
+    #expect(reassigned.allowed.contains("org.sample.New"))
+}
+
 @Test func discoveryDoesNotForgetHiddenOrAbsentApps() {
     var p = Preferences()
     p.remember([AppEntry(id: "org.sample.A", name: "A"), AppEntry(id: "org.sample.B", name: "B")])

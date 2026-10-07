@@ -241,6 +241,32 @@ feed. It verified the stable feed and `latest.json` afterward. A manual update
 check from the installed production app displayed “You’re up to date!” for
 0.1.7. Existing users of 0.1.6 need one manual installation to gain the updater.
 
+## Visibility request handoff — 0.1.8, 7 October 2026
+
+The visibility allow-list included every running app. Starting or stopping a
+background helper changed that list, and replacing the request released the
+old restriction followed by a 250 ms delay. That exposed hidden icons even
+though the user's hidden assignments had not changed. The report from another
+Mac has not been reproduced on that machine; this code path explains brief
+show/hide flashes during app lifecycle changes.
+
+Request replacement now retains the active restriction until its replacement
+activates, then releases the previous restriction before verifying the result.
+Errors and timeouts still restore every icon. Previously allowed bundle IDs
+remain allowed after their processes exit, avoiding unnecessary replacement
+on exit or return. New apps are allowed; explicit hidden assignments override
+retained allow-list entries.
+
+Twenty-two core tests passed, including regressions for background-app exit and
+return, new apps, and reassignment of a previously allowed app. A Developer ID
+build was installed for live testing. Hiding nine apps succeeded. Starting
+Calculator caused one replacement while all nine remained hidden; quitting and
+reopening Calculator retained the same request generation. With the shelf
+temporarily disabled, a direct reveal showed the Hidden apps and retained the
+Always hidden app's restriction; hiding again succeeded. The owner's shelf
+preference was restored. These checks were on macOS 27.2 (26B5091g); the other
+Mac's version and exact flash duration are still awaiting confirmation.
+
 ## Other coverage still needed
 
 Global shortcut registration and delivery on a physical keyboard; hover,

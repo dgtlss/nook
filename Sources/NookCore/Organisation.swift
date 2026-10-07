@@ -151,8 +151,11 @@ public enum BarShape: String, Codable, CaseIterable, Sendable {
 public struct VisibilityPlan: Equatable, Sendable {
     public let hidden: Set<String>
     public let allowed: Set<String>
-    public init(preferences: Preferences, runningBundles: Set<String>, reveal: Reveal, ownID: String, temporary: Set<String> = []) {
+    public init(preferences: Preferences, runningBundles: Set<String>, reveal: Reveal, ownID: String, temporary: Set<String> = [], previouslyAllowed: Set<String> = []) {
         hidden = preferences.hiddenBundles(reveal: reveal, ownID: ownID, temporary: temporary)
-        allowed = runningBundles.subtracting(hidden).union([ownID])
+        // A departed app does not need to be removed from the allow-list. Keep
+        // it allowed if it returns, without rebuilding the visibility request.
+        // Explicit hidden assignments always take precedence over this history.
+        allowed = runningBundles.union(previouslyAllowed).subtracting(hidden).union([ownID])
     }
 }

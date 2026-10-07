@@ -190,11 +190,12 @@ import os
             return
         }
         let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
-        let plan = VisibilityPlan(preferences: preferences, runningBundles: running, reveal: requested, ownID: ownID, temporary: temporary)
+        let plan = VisibilityPlan(preferences: preferences, runningBundles: running, reveal: requested, ownID: ownID, temporary: temporary,
+                                  previouslyAllowed: currentPlan?.allowed ?? [])
         // Shelf presentation does not change visibility. Releasing an identical
         // assertion would briefly reveal every icon before hiding them again.
         // Clearing a temporary reveal still produces a different plan below.
-        if plan == currentPlan {
+        if !applying, plan == currentPlan {
             if reveal != requested { reveal = requested; stateChanged?() }
             visibilityLogger.debug("Retained visibility lease: generation=\(self.generation, privacy: .public)")
             return
@@ -203,22 +204,18 @@ import os
         generation += 1
         let ticket = generation
         pending?.restore(); pending = nil; timeout?.cancel()
-        // MenuBarAgent combines simultaneous assertions. Release the previous
-        // allow-list before requesting another, so a peek can reveal apps.
+        // Keep the active request while its replacement is activating. Releasing
+        // it first briefly exposes every icon whenever a background app starts.
+        // The old request is released in begin's completion, before verification.
         let replacing = active != nil
         visibilityLogger.debug("Applying visibility: generation=\(ticket, privacy: .public) replacing=\(replacing, privacy: .public) hiddenCount=\(plan.hidden.count, privacy: .public)")
-        active?.restore(); active = nil; currentPlan = nil
         applying = true; message = nil
-        Task {
-            if replacing { try? await Task.sleep(for: .milliseconds(250)) }
-            guard ticket == generation else { return }
-            begin(plan: plan, requested: requested, ticket: ticket)
-        }
         timeout = Task { [weak self] in
             try? await Task.sleep(for: .seconds(4))
             guard !Task.isCancelled, let self, ticket == self.generation else { return }
             self.fail("macOS didn’t respond. All your icons have been restored.")
         }
+        begin(plan: plan, requested: requested, ticket: ticket)
     }
     private func begin(plan: VisibilityPlan, requested: Reveal, ticket: Int) {
         pending = NookVisibilityLease.allowBundles(plan.allowed.sorted()) { [weak self] error in
@@ -226,7 +223,12 @@ import os
                 guard let self, ticket == self.generation else { return }
                 self.timeout?.cancel()
                 if let error { self.fail("Couldn’t hide icons: \(error.localizedDescription)"); return }
+                let previous = self.active
                 self.active = self.pending; self.pending = nil
+                // MenuBarAgent combines overlapping restrictions. Once the new
+                // one is active, release the old one so newly allowed apps can
+                // appear while apps hidden by both requests remain hidden.
+                previous?.restore()
                 self.currentPlan = plan; self.reveal = requested; self.applying = false
                 self.stateChanged?()
                 self.verify(plan: plan, ticket: ticket)
