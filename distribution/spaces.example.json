@@ -1,0 +1,6 @@
+{
+  "bucket": "your-nook-space",
+  "region": "lon1",
+  "cdnURL": "https://your-nook-space.lon1.cdn.digitaloceanspaces.com",
+  "prefix": "nook"
+}

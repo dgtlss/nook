@@ -1,0 +1,11 @@
+{
+  "name": "nook-release-publisher",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1147.0"
+  }
+}

@@ -13,6 +13,7 @@ enum NookStyle {
 
 struct SettingsView: View {
     @ObservedObject var model: NookModel
+    @ObservedObject var updates: UpdateController
     var body: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
@@ -43,7 +44,7 @@ struct SettingsView: View {
                 case .organise: OrganiseView(model: model)
                 case .behaviour: BehaviourView(model: model)
                 case .appearance: AppearanceView(model: model)
-                case .about: AboutView(model: model)
+                case .about: AboutView(model: model, updates: updates)
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .windowBackgroundColor))
         }.frame(minWidth: 920, minHeight: 610).tint(NookStyle.teal)
@@ -282,6 +283,7 @@ struct AppearanceView: View {
 
 struct AboutView: View {
     @ObservedObject var model: NookModel
+    @ObservedObject var updates: UpdateController
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -295,6 +297,28 @@ struct AboutView: View {
                     }
                 }
                 Divider()
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Updates").font(.headline)
+                    if let error = updates.configurationError {
+                        Text(error).font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Toggle("Automatically check for updates", isOn: Binding(
+                            get: { updates.automaticallyChecks }, set: updates.setAutomaticallyChecks))
+                        Toggle("Download and install updates automatically", isOn: Binding(
+                            get: { updates.automaticallyInstalls }, set: updates.setAutomaticallyInstalls))
+                            .disabled(!updates.automaticallyChecks)
+                        Text("Checks daily. Automatic updates install when Nook quits.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        HStack {
+                            Button("Check for Updates…") { updates.checkForUpdates() }
+                                .disabled(!updates.canCheckForUpdates)
+                            if let checked = updates.lastCheck {
+                                Text("Last checked \(checked.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Settings").font(.headline)
                     HStack {
@@ -313,6 +337,11 @@ struct AboutView: View {
                     }.font(.caption).padding(.top, 12)
                 }
                 Text("© 2026 Nathan Langer · MIT License").font(.caption).foregroundStyle(.secondary)
+                Button("Third-party licences") {
+                    if let url = Bundle.main.url(forResource: "Sparkle-LICENSE", withExtension: "txt") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }.font(.caption).buttonStyle(.link)
             }.frame(maxWidth: .infinity, alignment: .leading).padding(36)
         }
     }

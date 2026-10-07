@@ -1,0 +1,6 @@
+{
+  "bucket": "nook-releases",
+  "region": "lon1",
+  "cdnURL": "https://nook-releases.lon1.cdn.digitaloceanspaces.com",
+  "prefix": "nook"
+}

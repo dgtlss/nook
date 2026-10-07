@@ -1,7 +1,7 @@
 # Nook
 
-Nook is an open-source macOS menu bar manager, written in Swift, SwiftUI and a small Objective-C bridge. MIT licensed; no
-third-party dependencies, tracking or network requests.
+Nook is an open-source macOS menu bar manager, written in Swift, SwiftUI and a small Objective-C bridge. MIT licensed, with no tracking.
+Updates use the open-source [Sparkle](https://sparkle-project.org) framework.
 
 Nook's source, interface and artwork were created for this project. Ice was a
 reference for user-facing features. No Ice source or assets are included. See
@@ -66,14 +66,17 @@ swift test
 ./scripts/install.sh
 ```
 
-By default the app is ad-hoc signed. To use your own signing identity:
+By default the app is ad-hoc signed for development. Production updates require
+`distribution/spaces.json`, configured as described in [Releasing](docs/RELEASING.md).
+To use your own signing identity:
 
 ```sh
 NOOK_CONFIGURATION=release NOOK_SIGN_IDENTITY='Developer ID Application: Your Name (TEAMID)' ./scripts/build.sh
 ```
 
 This builds locally. Developer ID builds use hardened runtime and a secure
-timestamp; ad-hoc builds have no secure timestamp. To prepare notarized ZIP and
+timestamp; ad-hoc development builds have no secure timestamp or hardened runtime.
+Sparkle and its helpers are embedded and signed inside-out. To prepare notarized ZIP and
 DMG downloads, follow [Releasing](docs/RELEASING.md).
 Open `/Applications/Nook.app` after installation. On the tested macOS build,
 launching from the development folder caused the system allow-list to hide
@@ -86,7 +89,7 @@ integration testing. No existing application's preferences need to be altered.
 
 ## Current scope
 
-Version 0.1.6 is an experimental preview. It targets the installed
+Version 0.1.7 is an experimental preview. It targets the installed
 macOS 27.2 build 26B5091g. The visibility backend uses the private Apple
 `MenuBarClientCore` framework, checks selectors at runtime, and verifies actual
 Accessibility visibility after each hide/peek request. Apple can change this
@@ -100,13 +103,28 @@ See the validation record for the exact observations.
 
 This first version does not yet match every Ice feature: the shelf uses app
 icons rather than copies of each status glyph; native icon spacing, automatic
-physical rearrangement, gradient backgrounds, app-menu overflow handling and
-automatic updates are not implemented. Launch at login, all gestures,
+physical rearrangement, gradient backgrounds and app-menu overflow handling
+are not implemented. Launch at login, all gestures,
 full-screen appearance, multiple displays and sleep/wake need broader testing.
 
 See [validation](docs/VALIDATION.md) for tested behavior and remaining coverage.
 The source and artwork are distributed under MIT. For release downloads and
 checksums, see GitHub Releases.
+
+## Updates
+
+Configured distribution builds check daily over HTTPS. **About Nook → Updates**
+includes a manual check and controls for automatic checks and installation.
+Automatic installation is optional and initially off; when enabled, Sparkle can
+install a downloaded update when Nook quits, or prompt for a restart later.
+Nook restores hidden menu bar apps before restarting. Update settings are stored
+by Sparkle in macOS preferences, separately from Nook's exported organisation settings.
+
+Update feeds and DMGs are signed with Ed25519; the app and DMG are also Developer ID
+signed and notarized. Feed signatures and archive signatures are verified before
+extraction. The update server receives ordinary download requests, without Sparkle
+system profiling. Builds without a feed show “Updates are not configured in this build.”
+Version 0.1.6 and earlier need one manual upgrade to gain the updater.
 
 ## Contributing
 

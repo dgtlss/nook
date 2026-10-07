@@ -10,6 +10,10 @@ if [[ "$NOOK_SIGN_IDENTITY" != 'Developer ID Application:'* ]]; then
     printf 'A Developer ID Application identity is required.\n' >&2
     exit 1
 fi
+if [[ -n "$(git status --porcelain)" ]]; then
+    printf 'Commit release changes first so the recorded source commit matches the packaged app.\n' >&2
+    exit 1
+fi
 
 swift test
 NOOK_CONFIGURATION=release ./scripts/build.sh
@@ -83,4 +87,7 @@ spctl --assess --type open --context context:primary-signature --verbose=4 "$NOO
     2> "$NOOK_RELEASE/verification/dmg-gatekeeper.txt"
 
 (cd "$NOOK_RELEASE" && shasum -a 256 "Nook-${NOOK_VERSION}-arm64.zip" "Nook-${NOOK_VERSION}-arm64.dmg" > SHA256SUMS.txt)
+./scripts/generate-appcast.sh "$NOOK_RELEASE"
+(cd "$NOOK_RELEASE" && shasum -a 256 "Nook-${NOOK_VERSION}-arm64.zip" "Nook-${NOOK_VERSION}-arm64.dmg" appcast.xml > SHA256SUMS.txt)
+/usr/bin/python3 scripts/verify-update.py "$NOOK_RELEASE" > "$NOOK_RELEASE/verification/update-manifest.json"
 printf 'Verified downloads ready in %s\n' "$NOOK_RELEASE"

@@ -3,7 +3,12 @@
 Nook is an independent implementation. The user explicitly required that Ice be
 used only as a guide to user-facing functionality. No Ice, Ice 2, IceMelt, Thaw,
 or other menu bar manager source or assets were copied into this repository.
-There are no third-party package dependencies.
+The only application package dependency is Sparkle 2.10.0, used for secure
+automatic updates. It is pinned in `Package.swift` and `Package.resolved`.
+Sparkle's MIT licence and bundled component notices are included as
+`Contents/Resources/Sparkle-LICENSE.txt` and accessible from About Nook.
+Release publishing uses the AWS SDK for JavaScript as a development tool; it is
+not included in Nook.app. Neither dependency is a menu bar manager.
 
 Before this requirement, an Ice 2 checkout was inspected in `/tmp` as part of
 planning. It is not part of Nook. This is original implementation, rather than a

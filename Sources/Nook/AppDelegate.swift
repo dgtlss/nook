@@ -5,6 +5,7 @@ import NookCore
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let model = NookModel()
+    private let updates = UpdateController()
     private var statusItem: NSStatusItem!
     private var settingsWindow: NSWindow?
     private let quick = NSPopover()
@@ -21,6 +22,7 @@ import NookCore
         let appMenu = NSMenu()
         let root = NSMenuItem(); root.submenu = NSMenu(title: "Nook")
         root.submenu?.addItem(withTitle: "Nook Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        root.submenu?.addItem(withTitle: "Check for Updates…", action: #selector(UpdateController.checkForUpdates(_:)), keyEquivalent: "").target = updates
         root.submenu?.addItem(withTitle: "Show all menu bar apps", action: #selector(showAll), keyEquivalent: "") .target = self
         root.submenu?.addItem(.separator())
         #if DEBUG
@@ -47,6 +49,8 @@ import NookCore
         }
         installMonitors()
         sync(); model.start()
+        updates.beforeRelaunch = { [weak self] in self?.model.showEverything(); self?.appearance.clear() }
+        updates.start()
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append(workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.peekOnWake = self?.model.reveal == .tucked; self?.model.suspend(); self?.appearance.clear() }
@@ -95,7 +99,7 @@ import NookCore
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = "Nook"; window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 920, height: 610)
-            window.contentView = NSHostingView(rootView: SettingsView(model: model)); window.center(); window.delegate = self
+            window.contentView = NSHostingView(rootView: SettingsView(model: model, updates: updates)); window.center(); window.delegate = self
             window.setFrameAutosaveName("NookSettings")
             settingsWindow = window
         }

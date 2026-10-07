@@ -4,3 +4,7 @@ build/
 *.xcuserstate
 .swiftpm/
 artifacts/diagnostics/
+node_modules/
+.env*
+!*.example
+__pycache__/

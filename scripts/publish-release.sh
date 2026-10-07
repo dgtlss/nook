@@ -11,24 +11,7 @@ NOOK_SOURCE="$(cat "$NOOK_RELEASE/verification/source-commit.txt")"
 NOOK_ZIP="$NOOK_RELEASE/Nook-${NOOK_VERSION}-arm64.zip"
 NOOK_DMG="$NOOK_RELEASE/Nook-${NOOK_VERSION}-arm64.dmg"
 
-for NOOK_RECORD in app-notarization dmg-notarization; do
-    /usr/bin/plutil -extract status raw -o - "$NOOK_RELEASE/verification/${NOOK_RECORD}.json" | /usr/bin/grep -qx Accepted
-done
-(cd "$NOOK_RELEASE" && shasum -a 256 -c SHA256SUMS.txt)
-xcrun stapler validate "$NOOK_APP"
-xcrun stapler validate "$NOOK_DMG"
-codesign --verify --strict "$NOOK_APP"
-codesign --verify --strict "$NOOK_DMG"
-spctl --assess --type execute --verbose=4 "$NOOK_APP"
-spctl --assess --type open --context context:primary-signature --verbose=4 "$NOOK_DMG"
-hdiutil verify "$NOOK_DMG"
-
-# Check the distributed ZIP, not just the source bundle used to create it.
-NOOK_EXTRACT="$(mktemp -d "$PWD/build/nook-release-extract.XXXXXX")"
-ditto -x -k "$NOOK_ZIP" "$NOOK_EXTRACT"
-codesign --verify --strict "$NOOK_EXTRACT/Nook.app"
-xcrun stapler validate "$NOOK_EXTRACT/Nook.app"
-spctl --assess --type execute --verbose=4 "$NOOK_EXTRACT/Nook.app"
+./scripts/verify-release.sh "$NOOK_RELEASE"
 
 gh release view "$NOOK_TAG" --repo dgtlss/nook --json isDraft,tagName,targetCommitish \
     > "$NOOK_RELEASE/verification/github-draft.json"
@@ -37,17 +20,17 @@ test "$(/usr/bin/plutil -extract tagName raw -o - "$NOOK_RELEASE/verification/gi
 test "$(/usr/bin/plutil -extract targetCommitish raw -o - "$NOOK_RELEASE/verification/github-draft.json")" = "$NOOK_SOURCE"
 
 # No clobber flag: an existing asset is never silently replaced.
-gh release upload "$NOOK_TAG" --repo dgtlss/nook "$NOOK_DMG" "$NOOK_ZIP" "$NOOK_RELEASE/SHA256SUMS.txt"
+gh release upload "$NOOK_TAG" --repo dgtlss/nook "$NOOK_DMG" "$NOOK_ZIP" "$NOOK_RELEASE/SHA256SUMS.txt" "$NOOK_RELEASE/appcast.xml"
 gh release view "$NOOK_TAG" --repo dgtlss/nook --json assets > "$NOOK_RELEASE/verification/github-assets.json"
 python3 - "$NOOK_RELEASE" "$NOOK_VERSION" <<'PY'
 import json, sys
 from pathlib import Path
 release, version = Path(sys.argv[1]), sys.argv[2]
-names = [f'Nook-{version}-arm64.dmg', f'Nook-{version}-arm64.zip', 'SHA256SUMS.txt']
+names = [f'Nook-{version}-arm64.dmg', f'Nook-{version}-arm64.zip', 'SHA256SUMS.txt', 'appcast.xml']
 expected = {name: (release / name).stat().st_size for name in names}
 assets = json.loads((release / 'verification/github-assets.json').read_text())['assets']
 actual = {asset['name']: asset['size'] for asset in assets}
-assert len(assets) == 3 and actual == expected, 'Uploaded release assets do not match the verified files'
+assert len(assets) == 4 and actual == expected, 'Uploaded release assets do not match the verified files'
 PY
 gh release edit "$NOOK_TAG" --repo dgtlss/nook --draft=false --prerelease --latest=false
 gh release view "$NOOK_TAG" --repo dgtlss/nook --json url,isDraft,isPrerelease,tagName,assets \

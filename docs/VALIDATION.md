@@ -181,6 +181,45 @@ including preference compatibility and round-trip tests, passed. The permission
 screen and error copy were reviewed in source, without revoking Accessibility.
 Current preferences were retained, including the owner's now-disabled tint.
 
+## Automatic updates — 0.1.7 preparation, 7 October 2026
+
+Added Sparkle 2.10.0, daily checks, manual checks and optional automatic
+download/installation controls. The application restores menu bar visibility
+before update relaunch. Update settings use Sparkle's macOS preferences rather
+than Nook's organisation JSON. The Nook Ed25519 private key is stored under
+the `dev.nathanlanger.Nook` account in Keychain; only its public key is packaged.
+
+Twenty core tests, three publishing policy tests and four feed-metadata tests
+passed. Both ad-hoc development packaging and Developer ID packaging passed
+recursive signature verification. Packaging removes SwiftPM's absolute
+development framework search path and signs Sparkle's helpers inside-out.
+An isolated test app and DMG were accepted by Apple, stapled and accepted by
+Gatekeeper. The complete local release verifier passed, including ZIP contents,
+permissions and symlink comparison, DMG verification, appcast metadata, and
+Sparkle signatures. Modifying feed text or flipping an archive byte caused
+signature verification to fail. Unconfigured release packaging was rejected.
+
+Native UI checks confirmed About's update controls, the installation toggle's
+disabled state until checks are enabled, persistence of both preferences in an
+isolated test defaults domain, and manual-check recovery from an unavailable
+server. The installed 0.1.6 app was reopened after testing and its previous nine
+hidden apps were hidden again. The test copy was stopped.
+
+The test feed uses `updates.invalid` and is deliberately unpublished. Production
+Space is now configured: `nook-releases` in `lon1`, CDN enabled, restricted
+listing, one-minute fallback edge cache TTL. The public configuration was saved
+to `distribution/spaces.json`. The bucket-scoped `nook-release-publisher` key
+was created with the owner's explicit approval and saved in the login Keychain.
+Authenticated upload and metadata lookup succeeded. Two revisions of a small
+validation object were verified byte-for-byte through origin and CDN; the CDN
+returned the second revision immediately and preserved the live metadata cache
+header (`no-cache, max-age=0, must-revalidate`). Bucket listing remains restricted.
+No 0.1.7 release or
+production feed has been published, and the installed app remains 0.1.6.
+Full download/install/relaunch, install-on-quit, Accessibility and login-item
+continuity across an actual update still need
+testing against a separate hosted test feed before the production feed advances.
+
 ## Other coverage still needed
 
 Global shortcut registration and delivery on a physical keyboard; hover,
