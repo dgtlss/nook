@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import NookCore
 import os
 
@@ -11,28 +12,38 @@ import os
         let frame: CGRect
         let safeAreaTop: CGFloat
         let menuBarHeight: CGFloat
+        let notch: CGRect?
         init(_ screen: NSScreen) {
             frame = screen.frame
             safeAreaTop = screen.safeAreaInsets.top
             menuBarHeight = max(NSStatusBar.system.thickness, safeAreaTop)
+            notch = screen.menuBarNotch
         }
     }
     func update(_ preferences: Preferences) {
+        // Avoid leaving a decorative strip over a full-screen app's hidden bar.
+        if NSApp.currentSystemPresentationOptions.contains(.autoHideMenuBar)
+            || NSApp.currentSystemPresentationOptions.contains(.hideMenuBar) {
+            if !panels.isEmpty { clear() }
+            return
+        }
         let screens = NSScreen.screens.map(ScreenGeometry.init)
         guard lastSettings?.tintEnabled != preferences.tintEnabled || lastSettings?.tintHex != preferences.tintHex || lastSettings?.tintOpacity != preferences.tintOpacity || lastSettings?.shape != preferences.shape || lastSettings?.borderEnabled != preferences.borderEnabled || lastSettings?.shadowEnabled != preferences.shadowEnabled || screens != lastScreens else { return }
         clear(); lastSettings = preferences; lastScreens = screens
         guard preferences.tintEnabled || preferences.borderEnabled || preferences.shadowEnabled else { return }
         for screen in screens {
             let height = screen.menuBarHeight
-            let frame = NSRect(x: screen.frame.minX, y: screen.frame.maxY - height, width: screen.frame.width, height: height)
+            let shadowSpace: CGFloat = preferences.shadowEnabled ? 8 : 0
+            let frame = NSRect(x: screen.frame.minX, y: screen.frame.maxY - height - shadowSpace, width: screen.frame.width, height: height + shadowSpace)
             let panel = TintPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.title = "Nook menu bar tint"
             // Above the menu bar background, below its status controls.
             panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.statusWindow)) - 1)
             panel.backgroundColor = .clear; panel.isOpaque = false; panel.ignoresMouseEvents = true; panel.hasShadow = false
-            panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
             panel.isReleasedWhenClosed = false
-            panel.contentView = TintView(preferences: preferences, notch: screen.safeAreaTop > 0)
+            let tint = MenuBarTintView(preferences: preferences, notch: screen.notch)
+            tint.barHeight = height; panel.contentView = tint
             panel.setFrame(frame, display: true)
             panel.orderFrontRegardless(); panels.append(panel)
             logger.debug("Tint placed: requested=\(NSStringFromRect(frame), privacy: .public) actual=\(NSStringFromRect(panel.frame), privacy: .public) screen=\(NSStringFromRect(screen.frame), privacy: .public) level=\(panel.level.rawValue, privacy: .public)")
@@ -49,29 +60,55 @@ private final class TintPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-private final class TintView: NSView {
-    let preferences: Preferences
-    let notch: Bool
-    init(preferences: Preferences, notch: Bool) { self.preferences = preferences; self.notch = notch; super.init(frame: .zero) }
+final class MenuBarTintView: NSView {
+    var preferences: Preferences
+    var notch: CGRect?
+    var barHeight: CGFloat?
+    init(preferences: Preferences, notch: CGRect?) { self.preferences = preferences; self.notch = notch; super.init(frame: .zero) }
     required init?(coder: NSCoder) { nil }
     override func draw(_ dirtyRect: NSRect) {
         guard bounds.width > 0 else { return }
         let n = UInt64(preferences.tintHex, radix: 16) ?? 0x146B60
         let color = NSColor(calibratedRed: CGFloat((n >> 16) & 255) / 255, green: CGFloat((n >> 8) & 255) / 255, blue: CGFloat(n & 255) / 255, alpha: preferences.tintOpacity)
-        let inset = preferences.shape == .full ? 0.0 : 3.0
         let radius = preferences.shape == .full ? 0.0 : 9.0
-        let rect = bounds.insetBy(dx: inset, dy: preferences.shape == .full ? 0 : 2)
-        var paths: [NSBezierPath]
-        if preferences.shape == .split {
-            let gap = notch ? 190.0 : 28.0
-            paths = [NSBezierPath(roundedRect: NSRect(x: rect.minX, y: rect.minY, width: rect.width / 2 - gap / 2, height: rect.height), xRadius: radius, yRadius: radius), NSBezierPath(roundedRect: NSRect(x: rect.midX + gap / 2, y: rect.minY, width: rect.width / 2 - gap / 2, height: rect.height), xRadius: radius, yRadius: radius)]
-        } else { paths = [NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)] }
-        for path in paths {
+        let bar = CGRect(x: bounds.minX, y: bounds.maxY - min(barHeight ?? bounds.height, bounds.height),
+                         width: bounds.width, height: min(barHeight ?? bounds.height, bounds.height))
+        for rect in MenuBarGeometry.segments(in: bar, shape: preferences.shape, notch: notch) {
+            let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
             NSGraphicsContext.saveGraphicsState()
-            if preferences.shadowEnabled { let shadow = NSShadow(); shadow.shadowColor = NSColor.black.withAlphaComponent(0.15); shadow.shadowBlurRadius = 5; shadow.shadowOffset = NSSize(width: 0, height: -2); shadow.set() }
+            if preferences.shadowEnabled {
+                let shadow = NSShadow(); shadow.shadowColor = NSColor.black.withAlphaComponent(0.15)
+                shadow.shadowBlurRadius = 5; shadow.shadowOffset = NSSize(width: 0, height: -2)
+                NSGraphicsContext.saveGraphicsState()
+                shadow.set(); NSColor.black.setFill(); path.fill()
+                NSGraphicsContext.restoreGraphicsState()
+                // Keep only the shadow, so it also works when the tint is off.
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current?.compositingOperation = .clear; path.fill()
+                NSGraphicsContext.restoreGraphicsState()
+            }
             if preferences.tintEnabled { color.setFill(); path.fill() }
             if preferences.borderEnabled { color.withAlphaComponent(0.35).setStroke(); path.lineWidth = 0.7; path.stroke() }
             NSGraphicsContext.restoreGraphicsState()
         }
+    }
+}
+
+extension NSScreen {
+    var menuBarNotch: CGRect? {
+        guard safeAreaInsets.top > 0, let left = auxiliaryTopLeftArea, let right = auxiliaryTopRightArea else { return nil }
+        return CGRect(x: left.maxX - frame.minX, y: 0, width: max(0, right.minX - left.maxX),
+                      height: max(NSStatusBar.system.thickness, safeAreaInsets.top))
+    }
+}
+
+/// The preview and actual menu bar use the same renderer and appearance values.
+struct MenuBarTint: NSViewRepresentable {
+    let preferences: Preferences
+    var notch: CGRect? = nil
+    var barHeight: CGFloat? = nil
+    func makeNSView(context: Context) -> MenuBarTintView { MenuBarTintView(preferences: preferences, notch: notch) }
+    func updateNSView(_ view: MenuBarTintView, context: Context) {
+        view.preferences = preferences; view.notch = notch; view.barHeight = barHeight; view.needsDisplay = true
     }
 }

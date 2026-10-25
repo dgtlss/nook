@@ -290,3 +290,45 @@ Physical keyboard testing is still required for system-wide delivery.
 Temporary fixture processes were stopped, fixture cards and the test Figma
 assignment were removed, and automatic rehide was restored. Test choices did
 not modify Figma's or Ice's preference files.
+
+## App improvements — 0.2.0, 2026-10-25
+
+The signed local build is version 0.2.0 (10), installed in Applications.
+The previous app and the original preferences were retained under build/.
+This build has not been notarized or published; the website and update feed
+were not changed.
+
+Thirty core tests pass. Added coverage includes migration of existing
+preferences, name fallback and discovery deduplication, per-app organisation
+undo without reverting unrelated settings/new apps, pause persistence and
+expiry, invalid imported pause deadlines, shortcut validation/conflicts, and
+split geometry using an actual notch interval. Debug and release builds
+compile. Recursive strict code-signature verification passes and the installed
+executable matches the packaged executable. git diff --check passes.
+
+Native checks on Apple silicon, macOS 27.2 (26B5091g):
+
+| Check | Result |
+| --- | --- |
+| Existing preferences | Original nine assignments, app order, appearance and behaviour settings retained; test changes restored |
+| Quiet launch / explicit reopen | Configured cold launch stayed in the menu bar; Finder Open reopened controls and restored all icons |
+| Hide / Show all | Seven running apps disappeared from discovered visibility; Nook retained its control; Show all restored them |
+| Shelf isolation | Listed six running Hidden apps; the Always hidden app was excluded |
+| Keyboard selection | Down selected the next result; Return revealed the selected hidden app and invoked its menu action while neighbours stayed hidden |
+| Search reopening | Escape dismissed; reopening cleared the query and accepted a physical key event immediately after the focus fix |
+| Empty results | Explicit No apps found and Clear search; the complete panel remained beneath the menu bar as its height changed |
+| Shortcuts | Duplicate assignment rejected; Control-Option-F recorded for search, then defaults restored |
+| Physical global delivery | User confirmed Control-Option-Space opened search while another app was active |
+| Undo and reordering | Herd moved Visible to Hidden; Command-Z restored its assignment. Moving Runnr up in the Running filter skipped inactive apps; Command-Z restored the original order |
+| Setup | Permission-ready step, selecting an already-assigned app, hide, Show all and Finish all worked without changing the saved rule |
+| Pause | A five-minute pause restored icons, survived restart and was cleared automatically at its deadline |
+| Appearance | Selected icon, notch, split shape, tint, shadow and independent light preview inspected; original finish restored |
+
+Screenshots and the native design critique are in .taste-skill/implementation.html.
+The web-only taste inspector/linter cannot inspect SwiftUI; no automated browser
+pass is claimed. Only existing Accessibility permission was used. Real
+sleep/wake, multiple physical displays, full-screen transitions, VoiceOver,
+increased contrast and other macOS builds still require hands-on coverage.
+Display and menu-bar host recovery now wait for Nook's control and a fresh
+snapshot before restoring a hidden state. Full-screen auto-hide presentation
+suppresses the tint, and split tint uses each display's actual notch geometry.

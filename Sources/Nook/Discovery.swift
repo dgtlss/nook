@@ -43,7 +43,7 @@ enum Discovery {
         var unique: [String: AppEntry] = [:]
         for node in nodes where !node.bundle.hasPrefix("com.apple.") {
             let name = apps.first { $0.bundleIdentifier == node.bundle }?.localizedName ?? node.label
-            unique[node.bundle] = AppEntry(id: node.bundle, name: name)
+            unique[node.bundle] = AppEntry(id: node.bundle, name: ApplicationIdentity.name(for: node.bundle, fallback: name))
         }
         return MenuSnapshot(entries: unique.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }, nodes: nodes, systemLabels: native)
     }
@@ -127,5 +127,28 @@ enum Discovery {
         guard AXUIElementCopyElementAtPosition(system, Float(point.x), Float(top - point.y), &found) == .success, let found else { return false }
         let role = attribute(found, kAXRoleAttribute as CFString) as? String ?? ""
         return role == "AXMenuBar" || role == "AXWindow"
+    }
+}
+
+enum ApplicationIdentity {
+    static func url(for id: String) -> URL? {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) else { return nil }
+        var result = url, parent = url.deletingLastPathComponent()
+        while parent.path != "/" {
+            if parent.pathExtension == "app" { result = parent }
+            parent.deleteLastPathComponent()
+        }
+        return result
+    }
+    static func name(for id: String, fallback: String) -> String {
+        if let url = url(for: id) {
+            let bundle = Bundle(url: url)
+            for value in [bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String,
+                          bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String,
+                          url.deletingPathExtension().lastPathComponent] {
+                if let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return value }
+            }
+        }
+        return AppEntry(id: id, name: fallback).displayName
     }
 }

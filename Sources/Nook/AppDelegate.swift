@@ -8,14 +8,15 @@ import NookCore
     private let updates = UpdateController()
     private var statusItem: NSStatusItem!
     private var settingsWindow: NSWindow?
-    private let quick = NSPopover()
-    private lazy var shelf = ShelfController(model: model)
+    private lazy var quick: MenuPanelController<QuickView> = MenuPanelController(title: "Nook search", rootView: QuickView(model: model,
+        openSettings: { [weak self] in self?.openSettings() },
+        close: { [weak self] in self?.quick.performClose(nil) }))
+    private lazy var shelf = MenuPanelController(title: "Nook shelf", rootView: ShelfView(model: model))
     private var monitors: [Any] = []
     private var observers: [NSObjectProtocol] = []
     private let shortcuts = ShortcutController()
     private let appearance = AppearanceController()
     private var lastGesture = Date.distantPast
-    private var peekOnWake = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -29,10 +30,17 @@ import NookCore
         root.submenu?.addItem(withTitle: "Simulate missing menu control", action: #selector(simulateMissingControl), keyEquivalent: "").target = self
         #endif
         root.submenu?.addItem(withTitle: "Quit Nook", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        appMenu.addItem(root); NSApp.mainMenu = appMenu
+        appMenu.addItem(root)
+        let edit = NSMenuItem(); edit.submenu = NSMenu(title: "Edit")
+        edit.submenu?.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = edit.submenu?.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redo?.keyEquivalentModifierMask = [.command, .shift]
+        edit.submenu?.addItem(.separator())
+        for (title, selector, key) in [("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] {
+            edit.submenu?.addItem(withTitle: title, action: Selector(selector), keyEquivalent: key)
+        }
+        appMenu.addItem(edit); NSApp.mainMenu = appMenu
         createStatusItem()
-        quick.behavior = .transient
-        quick.contentViewController = NSHostingController(rootView: QuickView(model: model, openSettings: { [weak self] in self?.openSettings() }))
         model.stateChanged = { [weak self] in self?.sync() }
         model.showShelf = { [weak self] in self?.showShelf() }
         model.closeShelf = { [weak self] in self?.shelf.performClose(nil) }
@@ -45,7 +53,7 @@ import NookCore
         model.menuOpen = { Discovery.menuIsOpen() }
         model.controlIsReachable = { [weak self] in self?.isControlReachable == true }
         shortcuts.action = { [weak self] action in
-            switch action { case 1: self?.model.toggle(); case 2: self?.showQuick(); case 3: self?.model.showEverything(); default: break }
+            self?.perform(action)
         }
         installMonitors()
         sync(); model.start()
@@ -53,10 +61,10 @@ import NookCore
         updates.start()
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append(workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.peekOnWake = self?.model.reveal == .tucked; self?.model.suspend(); self?.appearance.clear() }
+            MainActor.assumeIsolated { self?.quick.performClose(nil); self?.model.suspend(); self?.appearance.clear() }
         })
         observers.append(workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.model.refresh(); if self?.peekOnWake == true { self?.model.tuck() }; self?.sync() }
+            MainActor.assumeIsolated { self?.recreateStatusItem(); self?.model.recoverAfterEnvironmentChange() }
         })
         for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification, NSWorkspace.activeSpaceDidChangeNotification] {
             observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
@@ -66,17 +74,26 @@ import NookCore
                     if app?.bundleIdentifier == "com.apple.MenuBarAgent" {
                         // The old AppKit status window can survive a server
                         // restart while no longer representing its new button.
-                        self.model.showEverything()
+                        self.model.suspend()
                         if note.name == NSWorkspace.didLaunchApplicationNotification {
                             self.recreateStatusItem()
+                            self.model.recoverAfterEnvironmentChange()
                         }
+                    }
+                    if note.name == NSWorkspace.activeSpaceDidChangeNotification {
+                        self.quick.performClose(nil); self.shelf.performClose(nil); self.appearance.clear()
                     }
                     self.model.refresh(); self.sync()
                 }
             })
         }
-        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.shelf.performClose(nil); self?.sync(); self?.model.refresh() } })
-        openSettings()
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.quick.performClose(nil); self?.appearance.clear()
+                self?.model.recoverAfterEnvironmentChange(); self?.sync()
+            }
+        })
+        if model.showingSetup { openSettings() }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -98,12 +115,16 @@ import NookCore
         if settingsWindow == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = "Nook"; window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
-            window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 920, height: 610)
+            window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 760, height: 580)
             window.contentView = NSHostingView(rootView: SettingsView(model: model, updates: updates)); window.center(); window.delegate = self
             window.setFrameAutosaveName("NookSettings")
             settingsWindow = window
         }
         settingsWindow?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    }
+    func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? { model.undoManager }
+    private func perform(_ action: ShortcutAction) {
+        switch action { case .toggle: model.toggle(); case .search: showQuick(); case .showAll: model.showEverything() }
     }
     @objc private func showAll() { model.showEverything() }
     #if DEBUG
@@ -113,14 +134,17 @@ import NookCore
         // Accessibility activation has no mouse event. It must toggle too.
         let event = NSApp.currentEvent
         if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true { showQuick() }
-        else if event?.modifierFlags.contains(.option) == true { model.showEverything() }
-        else if !model.permissionGranted { openSettings() }
-        else { model.toggle() }
+        else {
+            quick.performClose(nil)
+            if event?.modifierFlags.contains(.option) == true { model.showEverything() }
+            else if !model.permissionGranted { openSettings() }
+            else { model.toggle() }
+        }
     }
     private func showQuick() {
         guard let button = statusItem.button else { return }
-        shelf.performClose(nil); quick.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        quick.contentViewController?.view.window?.makeKey(); NSApp.activate(ignoringOtherApps: true)
+        shelf.performClose(nil); quick.show(below: button)
+        NSApp.activate(ignoringOtherApps: true)
     }
     private func showShelf() {
         guard let button = statusItem.button else { return }
@@ -131,8 +155,8 @@ import NookCore
         statusItem?.isVisible = true
         statusItem?.button?.image = MenuBarArtwork.image(model.preferences.menuBarIcon, peeking: model.reveal != .tucked)
         statusItem?.button?.toolTip = "Nook — \(model.status)\nClick to toggle hidden apps. Option-click to show all. Right-click for controls."
-        shortcuts.configure(enabled: model.preferences.hotkeyEnabled)
-        model.shortcutIssue = shortcuts.registrationFailure
+        shortcuts.configure(enabled: model.preferences.hotkeyEnabled && model.recordingShortcut == nil, bindings: model.preferences.shortcuts)
+        if model.shortcutIssues != shortcuts.issues { model.shortcutIssues = shortcuts.issues }
         appearance.update(model.preferences)
     }
 
@@ -168,15 +192,14 @@ import NookCore
         // App-local key events also support shortcuts while Settings is focused.
         // Carbon handles the system-wide route; macOS consumes those events.
         if let monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: { [weak self] event in
-            guard let self, self.model.preferences.hotkeyEnabled else { return event }
-            let flags = event.modifierFlags.intersection([.control, .option, .shift, .command])
-            if flags == [.control, .option], event.keyCode == UInt16(kVK_ANSI_N) { self.model.toggle(); return nil }
-            if flags == [.control, .option], event.keyCode == UInt16(kVK_Space) { self.showQuick(); return nil }
-            if flags == [.control, .option, .shift], event.keyCode == UInt16(kVK_ANSI_N) { self.model.showEverything(); return nil }
+            guard let self, self.model.preferences.hotkeyEnabled, self.model.recordingShortcut == nil else { return event }
+            if let action = ShortcutAction.allCases.first(where: { self.model.preferences.shortcuts[$0].matches(event) }) {
+                self.perform(action); return nil
+            }
             return event
         }) { monitors.append(monitor) }
         if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel, .leftMouseDown], handler: { [weak self] event in
-            guard let self, self.model.permissionGranted, self.model.reveal == .tucked, Date().timeIntervalSince(self.lastGesture) > 0.6, self.isInMenuBar(NSEvent.mouseLocation) else { return }
+            guard let self, self.model.permissionGranted, !self.model.isPaused, self.model.reveal == .tucked, Date().timeIntervalSince(self.lastGesture) > 0.6, self.isInMenuBar(NSEvent.mouseLocation) else { return }
             if event.type == .scrollWheel, self.model.preferences.showOnScroll, abs(event.scrollingDeltaY) > 1 {
                 self.lastGesture = Date(); self.model.peek()
             } else if event.type == .leftMouseDown, self.model.preferences.showOnEmptyClick {
@@ -188,7 +211,7 @@ import NookCore
             }
         }) { monitors.append(monitor) }
         if let monitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: { [weak self] _ in
-            guard let self, self.model.permissionGranted, self.model.preferences.showOnHover, self.model.reveal == .tucked, Date().timeIntervalSince(self.lastGesture) > 0.8,
+            guard let self, self.model.permissionGranted, !self.model.isPaused, self.model.preferences.showOnHover, self.model.reveal == .tucked, Date().timeIntervalSince(self.lastGesture) > 0.8,
                 let frame = self.statusItem.button?.window?.frame, frame.insetBy(dx: -7, dy: 0).contains(NSEvent.mouseLocation) else { return }
             self.lastGesture = Date(); self.model.peek()
         }) { monitors.append(monitor) }
@@ -199,43 +222,5 @@ import NookCore
             let height = max(NSStatusBar.system.thickness, screen.safeAreaInsets.top)
             return point.y >= screen.frame.maxY - height
         }
-    }
-}
-
-@MainActor final class ShortcutController {
-    var action: ((Int) -> Void)?
-    private(set) var registrationFailure: String?
-    private var refs: [EventHotKeyRef] = []
-    private var handler: EventHandlerRef?
-    private var enabled = false
-    func configure(enabled: Bool) {
-        guard self.enabled != enabled else { return }
-        stop(); self.enabled = enabled
-        guard enabled else { return }
-        let context = Unmanaged.passUnretained(self).toOpaque()
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        let installed = InstallEventHandler(GetEventDispatcherTarget(), { _, event, data in
-            guard let event, let data else { return OSStatus(eventNotHandledErr) }
-            var id = EventHotKeyID()
-            let result = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
-            guard result == noErr else { return result }
-            MainActor.assumeIsolated { Unmanaged<ShortcutController>.fromOpaque(data).takeUnretainedValue().action?(Int(id.id)) }
-            return noErr
-        }, 1, &spec, context, &handler)
-        guard installed == noErr else {
-            registrationFailure = "macOS couldn’t enable global shortcuts (\(installed))."
-            return
-        }
-        for (id, key, modifiers) in [(1, UInt32(kVK_ANSI_N), UInt32(controlKey | optionKey)), (2, UInt32(kVK_Space), UInt32(controlKey | optionKey)), (3, UInt32(kVK_ANSI_N), UInt32(controlKey | optionKey | shiftKey))] {
-            var ref: EventHotKeyRef?
-            let result = RegisterEventHotKey(key, modifiers, EventHotKeyID(signature: 0x4E4F4F4B, id: UInt32(id)), GetEventDispatcherTarget(), 0, &ref)
-            if result == noErr, let ref { refs.append(ref) }
-            else { registrationFailure = "A global shortcut is unavailable (\(result)). Another app may be using it." }
-        }
-    }
-    func stop() {
-        refs.forEach { UnregisterEventHotKey($0) }; refs = []
-        if let handler { RemoveEventHandler(handler) }; handler = nil; enabled = false
-        registrationFailure = nil
     }
 }

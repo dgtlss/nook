@@ -29,6 +29,25 @@ public struct AppEntry: Identifiable, Hashable, Codable, Sendable {
     public init(id: String, name: String, isRunning: Bool = true) {
         self.id = id; self.name = name; self.isRunning = isRunning
     }
+    public var displayName: String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
+        return id.split(separator: ".").last.map(String.init) ?? "Unknown app"
+    }
+}
+
+public struct HidingPause: Codable, Equatable, Sendable {
+    public var until: Date?
+    public init(until: Date? = nil) { self.until = until }
+    public func isActive(at date: Date) -> Bool { until.map { $0 > date } ?? true }
+}
+
+/// Undo changes one app without overwriting later discovery or appearance settings.
+public struct AppOrganisationState: Equatable, Sendable {
+    public let id: String
+    public let assignment: Place?
+    public let index: Int?
+    public let entry: AppEntry?
 }
 
 public struct Preferences: Codable, Equatable, Sendable {
@@ -50,6 +69,9 @@ public struct Preferences: Codable, Equatable, Sendable {
     public var shape: BarShape = .full
     public var hotkeyEnabled = true
     public var menuBarIcon: MenuBarIcon = .nook
+    public var setupCompleted = false
+    public var pause: HidingPause?
+    public var shortcuts = ShortcutBindings()
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
@@ -57,6 +79,7 @@ public struct Preferences: Codable, Equatable, Sendable {
         case showOnHover, showOnScroll, showOnEmptyClick, useShelf
         case tintEnabled, tintOpacity, tintHex, borderEnabled, shadowEnabled
         case shape, hotkeyEnabled, menuBarIcon
+        case setupCompleted, pause, shortcuts
     }
     public init(from decoder: Decoder) throws {
         self.init()
@@ -78,6 +101,9 @@ public struct Preferences: Codable, Equatable, Sendable {
         shadowEnabled = try c.decodeIfPresent(Bool.self, forKey: .shadowEnabled) ?? shadowEnabled
         shape = try c.decodeIfPresent(BarShape.self, forKey: .shape) ?? shape
         hotkeyEnabled = try c.decodeIfPresent(Bool.self, forKey: .hotkeyEnabled) ?? hotkeyEnabled
+        setupCompleted = try c.decodeIfPresent(Bool.self, forKey: .setupCompleted) ?? !remembered.isEmpty
+        pause = try c.decodeIfPresent(HidingPause.self, forKey: .pause)
+        shortcuts = try c.decodeIfPresent(ShortcutBindings.self, forKey: .shortcuts) ?? shortcuts
         if let name = try c.decodeIfPresent(String.self, forKey: .menuBarIcon) {
             menuBarIcon = MenuBarIcon(rawValue: name) ?? .nook
         }
@@ -92,8 +118,22 @@ public struct Preferences: Codable, Equatable, Sendable {
         var combined = Dictionary(remembered.map { ($0.id, AppEntry(id: $0.id, name: $0.name, isRunning: false)) }, uniquingKeysWith: { first, _ in first })
         combined.merge(fresh, uniquingKeysWith: { _, new in new })
         remembered = combined.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        let unseen = entries.map(\.id).filter { !order.contains($0) }
-        order.append(contentsOf: unseen)
+        for entry in entries where !order.contains(entry.id) { order.append(entry.id) }
+    }
+    public func organisationState(for id: String) -> AppOrganisationState {
+        AppOrganisationState(id: id, assignment: assignments[id], index: order.firstIndex(of: id),
+                             entry: remembered.first { $0.id == id })
+    }
+    public mutating func forget(_ id: String) {
+        assignments.removeValue(forKey: id)
+        order.removeAll { $0 == id }
+        remembered.removeAll { $0.id == id }
+    }
+    public mutating func restore(_ state: AppOrganisationState) {
+        forget(state.id)
+        assignments[state.id] = state.assignment
+        if let entry = state.entry { remembered.append(entry) }
+        if let index = state.index { order.insert(state.id, at: min(index, order.count)) }
     }
     public func hiddenBundles(reveal: Reveal, ownID: String, temporary: Set<String> = []) -> Set<String> {
         Set(assignments.compactMap { id, place in
@@ -115,6 +155,13 @@ public struct Preferences: Codable, Equatable, Sendable {
         p.assignments = p.assignments.filter { !$0.key.isEmpty && !$0.key.hasPrefix("com.apple.") }
         var seen: Set<String> = []
         p.order = p.order.filter { seen.insert($0).inserted }
+        seen.removeAll()
+        p.remembered = p.remembered.filter { !$0.id.isEmpty && !$0.id.hasPrefix("com.apple.") && seen.insert($0.id).inserted }
+        p.shortcuts = p.shortcuts.validated()
+        if let until = p.pause?.until,
+           !until.timeIntervalSinceReferenceDate.isFinite || until.timeIntervalSinceNow > 86_400 {
+            p.pause = HidingPause()
+        }
         return p
     }
 }

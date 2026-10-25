@@ -9,12 +9,35 @@ reference for user-facing features. No Ice source or assets are included. See
 
 ## Download
 
-[Download Nook 0.1.8](https://nook-releases.lon1.cdn.digitaloceanspaces.com/nook/versions/v0.1.8/Nook-0.1.8-arm64.dmg)
-or view [release notes and checksums](https://github.com/dgtlss/nook/releases/tag/v0.1.8).
+[Download Nook 0.2.0](https://nook-releases.lon1.cdn.digitaloceanspaces.com/nook/versions/v0.2.0/Nook-0.2.0-arm64.dmg)
+or view [release notes and checksums](https://github.com/dgtlss/nook/releases/tag/v0.2.0).
 Packaged builds target Apple silicon and macOS 27 or later; macOS 27.2
 (26B5091g) is the tested build. Use the DMG to install Nook in Applications.
 
 ## Run
+
+The 0.2.0 app uses compact top navigation and adapts Organise to a grouped list
+in smaller windows. Running/All apps filters, readable helper names and a
+Forget app action keep old entries manageable. Moves, reordering and forgetting
+support Undo/Redo; forgotten apps can be restored with Command–Z.
+
+First launch includes a three-step setup guide. Later launches stay in the menu
+bar without opening Settings; About Nook can reopen setup. The search panel and
+shelf support Up/Down, Return and Escape, readable app names, empty results and
+context menus for group changes and reordering. Both panels follow Nook's display
+and resize below its menu bar as their contents change.
+
+Pause hiding for five minutes, fifteen minutes or until resumed. A pause restores
+every icon and suppresses reveal gestures and automatic hiding. It persists
+across launch; timed pauses resume when their deadline passes, including after
+sleep. Visibility controls say what their next action does and show the current
+state beside them.
+
+Behaviour includes native shortcut recorders with per-action conflict messages
+and a reset to defaults. Appearance previews the actual icon and shared tint,
+shape, border and shadow renderer, with independent light/dark, notch and
+hidden/shown previews. About includes compatibility information, recovery
+controls and a copyable diagnostic summary without app names or menu contents.
 
 Install and run `/Applications/Nook.app` (see Build below). Enable it in System Settings →
 Privacy & Security → Accessibility. Nook uses Accessibility to discover status
@@ -33,8 +56,9 @@ shows everything; right-click opens quick controls and search.
 - Command-drag status items in macOS to change their physical order. Card order
   controls Nook's own shelf and search, not the native bar.
 
-Shortcuts: Control-Option-N toggles, Control-Option-Space opens search, and
-Control-Option-Shift-N shows all. Behaviour includes timed rehide, hover,
+Default shortcuts, editable in Behaviour: Control-Option-N toggles,
+Control-Option-Space opens search, and Control-Option-Shift-N shows all.
+Behaviour includes timed rehide, hover,
 scroll, empty-space click, an app-icon shelf and launch at login. Appearance
 includes five menu bar icon choices (Nook, Dot, Chevron, Leaf and Tiles), tint,
 shape, border and shadow. The chosen icon is saved and takes effect immediately.
@@ -90,7 +114,7 @@ integration testing. No existing application's preferences need to be altered.
 
 ## Current scope
 
-Version 0.1.8 is an experimental preview. It targets the installed
+Version 0.2.0 is an experimental preview. It targets the installed
 macOS 27.2 build 26B5091g. The visibility backend uses the private Apple
 `MenuBarClientCore` framework, checks selectors at runtime, and verifies actual
 Accessibility visibility after each hide/peek request. Apple can change this
@@ -102,7 +126,7 @@ restriction was active; installed Figma did return correctly. An app with this
 compatibility problem causes Nook to release its request and restore the bar.
 See the validation record for the exact observations.
 
-This first version does not yet match every Ice feature: the shelf uses app
+Nook does not yet match every Ice feature: the shelf uses app
 icons rather than copies of each status glyph; native icon spacing, automatic
 physical rearrangement, gradient backgrounds and app-menu overflow handling
 are not implemented. Launch at login, all gestures,

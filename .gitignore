@@ -4,6 +4,7 @@ build/
 *.xcuserstate
 .swiftpm/
 artifacts/diagnostics/
+.taste-skill/
 node_modules/
 .env*
 !*.example
