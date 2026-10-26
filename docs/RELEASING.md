@@ -2,6 +2,9 @@
 
 Releases are prepared locally with Xcode and an existing Developer ID Application
 identity. Signing keys and notarization credentials remain in Keychain.
+On the current release Mac, the saved notarytool profile is
+`FDVZHKZHLN-notary`; it is used with the Developer ID Application identity for
+team `FDVZHKZHLN`.
 
 ## Configure updates
 

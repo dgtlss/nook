@@ -293,10 +293,10 @@ not modify Figma's or Ice's preference files.
 
 ## App improvements — 0.2.0, 2026-10-25
 
-The signed local build is version 0.2.0 (10), installed in Applications.
+The signed local build was version 0.2.0 (10), installed in Applications.
 The previous app and the original preferences were retained under build/.
-This build has not been notarized or published; the website and update feed
-were not changed.
+Initial app validation preceded notarization and publication, recorded below;
+the website was not changed.
 
 Thirty core tests pass. Added coverage includes migration of existing
 preferences, name fallback and discovery deduplication, per-app organisation
@@ -332,3 +332,31 @@ increased contrast and other macOS builds still require hands-on coverage.
 Display and menu-bar host recovery now wait for Nook's control and a fresh
 snapshot before restoring a hidden state. Full-screen auto-hide presentation
 suppresses the tint, and split tint uses each display's actual notch geometry.
+
+## Published 0.2.0 — 2026-10-26
+
+Version 0.2.0 (build 10) was released from source commit
+`0e8b747c490dbe2365b46d55ad33dbff3889f610` as an experimental GitHub prerelease
+and through the production Spaces CDN and signed Sparkle feed.
+Thirty core tests, three publisher policy tests and four update-verifier tests
+passed. Apple accepted the app and DMG notarization submissions. Both tickets
+were stapled and validated; recursive code signatures, Gatekeeper, DMG integrity,
+ZIP contents, checksums and Sparkle archive/feed signatures passed verification.
+
+The final ZIP was extracted and installed in Applications. Its executable
+matched the verified release; assignments, app order and user settings were
+unchanged. Discovery refreshed the saved running-state metadata. Quiet
+launch, explicit Finder reopening, hiding seven running apps and restoring all
+icons worked. The installed app's production update check reported that 0.2.0
+was the newest version available. This checks the live feed; an actual
+0.1.8-to-0.2.0 Sparkle installation was not repeated in this release run.
+
+All four GitHub download files matched the local verified SHA-256 hashes.
+The Spaces publisher also verified all four immutable files through origin and
+CDN before advancing the live signed feed to build 10. An independent check
+confirmed the stable feed bytes and latest.json. No website files were changed.
+Verification records and installation screenshots remain in
+`build/releases/v0.2.0.rtzvGX/verification/`.
+
+Release: https://github.com/dgtlss/nook/releases/tag/v0.2.0
+Download: https://nook-releases.lon1.cdn.digitaloceanspaces.com/nook/versions/v0.2.0/Nook-0.2.0-arm64.dmg
